@@ -1,9 +1,13 @@
 package main
 
 import (
+	"bufio"
+	"flag"
 	"fmt"
-	"rand"
+	"os"
 	"sort"
+	"strconv"
+	"strings"
 )
 
 func prod(x, y []float) float {
@@ -205,28 +209,120 @@ func examineExample(points [][]float, target []float, C float, alpha []float, i2
 }
 
 func main() {
-	size := 1000
-	points := make([][]float, size)
-	target := make([]float, size)
-	C := 5.0
+	flag_help := flag.Bool("help", false, "display this help")
+	flag_infile := flag.String("in", "",
+`input file with data. Each row is a data point. First number in
+every line must be 1 or -1 and means point class. Next float numbers
+are point coordinates.`)
+
+	flag.Parse()
 	
-	// generating data
+	if *flag_help {
+		flag.PrintDefaults()
+		return
+	}
+
+	// configuring input file
+	infile := os.Stdin
+	var err os.Error
+	if *flag_infile!="" {
+		infile, err = os.Open(*flag_infile, os.O_RDONLY, 0000)
+		if err!=nil {
+			panic(err)
+		}
+	}
+
+	// reading data
+	points := make([][]float, 1, 10)
+	target := make([]float, 1, 10)
 	{
-		k := 4.0
-		b := 3.0
-		for i:=0; i<size/2; i++ {
-			x := rand.Float() * 50.0 - 25.0
-			points[i] = []float{x, x*k + b + rand.Float()*10+5}
-			target[i] = -1.0
+		reader := bufio.NewReader(infile)
+		
+		// reading first line
+		dimentions := 0
+		var err os.Error
+		var line string
+		line, err = reader.ReadString('\n');
+		line = strings.Trim(line, " \t\n")
+		chunks := strings.Split(line, "\t", -1)
+		if len(chunks)<3 {
+			panic("Too small numbers in a line")
 		}
 		
-		for i:=size/2; i<size; i++ {
-			x := rand.Float() * 50.0 - 25.0
-			points[i] = []float{x, x*k + b - rand.Float()*10-5}
-			target[i] = 1.0
+		target[0], err = strconv.Atof(chunks[0])
+		if err!=nil {
+			panic(err)
+		}
+		dimentions = len(chunks)-1
+		points[0] = make([]float, dimentions)
+		for i:=1; i<len(chunks); i++ {
+			points[0][i-1], err = strconv.Atof(chunks[i])
+			if err!=nil {
+				panic(err)
+			}
+		}
+		
+		// reading other points
+		line, err = reader.ReadString('\n');
+		for err==nil || err==os.EOF {
+			line = strings.Trim(line, " \t\n")
+			if line=="" {
+				if err==os.EOF {
+					break
+				}
+				line, err = reader.ReadString('\n');
+				continue
+			}
+			chunks := strings.Split(line, "\t", -1)
+			if len(chunks)-1 != dimentions {
+				panic("Dimentions mismatch.")
+			}
+			
+			if len(points)+1>=cap(points) {
+				// resize arrays
+				{
+					tmp := make([][]float, len(points), 2*len(points))
+					copy(tmp, points)
+					points = tmp
+				}
+				
+				{
+					tmp := make([]float, len(points), 2*len(points))
+					copy(tmp, target)
+					target = tmp
+				}
+			}
+			
+			pos := len(points)
+			points = points[0:len(points)+1]
+			target = target[0:len(points)+1]
+			
+			target[pos], err = strconv.Atof(chunks[0])
+			if err!=nil {
+				panic(err)
+			}
+			points[pos] = make([]float, dimentions)
+			for i:=1; i<len(chunks); i++ {
+				points[pos][i-1], err = strconv.Atof(chunks[i])
+				if err!=nil {
+					panic(err)
+				}
+			}
+			if err==os.EOF {
+				break
+			}
+			line, err = reader.ReadString('\n');
+		}
+		if err!=nil && err!=os.EOF {
+			panic(err)
 		}
 	}
 	
+	size := len(points)
+	C := 5.0
+
+	fmt.Println("Classification started for size", size)
+
 	numChanged := 0
 	examineAll := true
 	alpha := make([]float, size)
