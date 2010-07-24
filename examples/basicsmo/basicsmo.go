@@ -144,6 +144,7 @@ func (s *indexesSorter) Less(i, j int) bool {
 
 func (s *indexesSorter) Swap(i, j int) {
 	s.weights[i], s.weights[j] = s.weights[j], s.weights[i]
+	// s.indexes[i], s.indexes[j] = s.indexes[j], s.indexes[i]
 }
 
 func newIndexesSorter(indexes []int, weights []float) *indexesSorter {
@@ -166,6 +167,7 @@ func examineExample(points [][]float, target []float, C float, alpha []float, i2
 	tol := 1e-3 // wtf?! i don't know, what't this! And what variable value should be :(
 	if (r2 < -tol && alph2 < C) || (r2 > tol && alph2>0) {
 		// heuristic 2.2 choise
+		/*
 		{
 			errors := make([]float, len(alpha))
 			indexes := make([]int, len(alpha))
@@ -187,6 +189,7 @@ func examineExample(points [][]float, target []float, C float, alpha []float, i2
 				return 1
 			}
 		}
+		*/
 		
 		for i1, alph1 := range alpha {
 			if alph1>0 || alph1<C {
