@@ -37,7 +37,11 @@ are point coordinates.`)
 	
 	C := 5.0
 	
-	w, w0 := svm.SequentialMinimalOptimization(points, target, C, 1e-3, true)
+	logger := func(isAll bool, checkedAlpha uint, w []float, w0 float, changesMap map[int]int) {
+		fmt.Printf("%v\t%v\t%v\t%v\t%v\n", isAll, checkedAlpha, w, w0, changesMap)
+	}
+	
+	w, w0 := svm.SequentialMinimalOptimization_logger(points, target, C, 1e-2, logger)
 	errors := 0
 	for i:=0; i<len(points)/2; i++ {
 		if svm.LincearClassificator(points[i], w, w0) >= 0 {
@@ -57,5 +61,5 @@ are point coordinates.`)
 	}
 	*/
 	fmt.Println(w, w0)
-	fmt.Println(errors)
+	fmt.Println("errors:", errors)
 }

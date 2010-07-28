@@ -4,6 +4,20 @@ import (
 	"sort"
 )
 
+// Logger function form SMO algorithm
+//
+// Function called after each iteration with these arguemnts:
+// isAll - is during interations checks all alphas
+// checkedAlpha - number of alphas, for which called takeStep function. Number of non-bound alphas
+//                if !isAll and total number of alphas if isAll
+// w, w0 - current solution
+// changesMap - map of alphas, that changed value
+type smoLoggerFunc func(isAll bool, 
+	checkedAlpha uint, 
+	w []float, 
+	w0 float, 
+	changesMap map[int]int)
+
 type indexesSorter struct {
 	weights []float
 	indexes []int
@@ -46,9 +60,10 @@ type sequentialMinimalOptimizationTask struct {
 	// todo: add nonbound alphas map
 	
 	useHeurisitc bool
+	log smoLoggerFunc
 }
 
-func newSequentialMinimalOptimizationTask(points [][]float, target []float, C, eps float, useHeurisitc bool) *sequentialMinimalOptimizationTask {
+func newSequentialMinimalOptimizationTask(points [][]float, target []float, C, eps float, useHeurisitc bool, log smoLoggerFunc) *sequentialMinimalOptimizationTask {
 	// checking task
 	size := len(points)
 	if size<=0 {
@@ -92,6 +107,7 @@ func newSequentialMinimalOptimizationTask(points [][]float, target []float, C, e
 		alpha : make([]float, size),
 		errors : make([]float, size),
 		useHeurisitc: useHeurisitc,
+		log: log,
 	}
 	
 	result.UpdateCache()
@@ -205,7 +221,7 @@ func (t *sequentialMinimalOptimizationTask) TakeStep(i1, i2 int) bool {
 	return true
 }
 
-func (t *sequentialMinimalOptimizationTask) ExamineExample(i2 int) int {
+func (t *sequentialMinimalOptimizationTask) ExamineExample(i2 int) (int, bool) {
 	y2 := t.target[i2]
 	alph2 := t.alpha[i2]
 	E2 := t.errors[i2]
@@ -229,14 +245,14 @@ func (t *sequentialMinimalOptimizationTask) ExamineExample(i2 int) int {
 			}
 			
 			if t.TakeStep(i1, i2) {
-				return 1
+				return i1, true
 			}
 		}
 		
 		for i1, alph1 := range t.alpha {
 			if alph1>0 || alph1<t.C {
 				if t.TakeStep(i1, i2) {
-					return 1
+					return i1, true
 				}
 			}
 		}
@@ -244,26 +260,31 @@ func (t *sequentialMinimalOptimizationTask) ExamineExample(i2 int) int {
 		for i1, alph1 := range t.alpha {
 			if alph1==0 || alph1==t.C {
 				if t.TakeStep(i1, i2) {
-					return 1
+					return i1, true
 				}
 			}
 		}
 	}
 	
-	return 0
+	return -1, false
 }
 
 func (t *sequentialMinimalOptimizationTask) Train() {
 	numChanged := 0
 	examineAll := true
 
-	itersCnt := 0	
+	itersCnt := 0
 	for (numChanged>0) || examineAll {
+		changesMap := make(map[int]int)
 		itersCnt++
-		numChanged = 0
+		scannedAlpha := uint(0)
 		if examineAll {
+			scannedAlpha = uint(len(t.points))
 			for i, _ := range t.points {
-				numChanged += t.ExamineExample(i)
+				i1, isChanged := t.ExamineExample(i)
+				if isChanged {
+					changesMap[i] = i1
+				}
 			}
 		} else {
 			for i, a := range t.alpha {
@@ -271,9 +292,15 @@ func (t *sequentialMinimalOptimizationTask) Train() {
 					continue
 				}
 				
-				numChanged += t.ExamineExample(i)
+				scannedAlpha++
+				i1, isChanged := t.ExamineExample(i)
+				if isChanged {
+					changesMap[i] = i1
+				}
 			}
 		}
+		numChanged = len(changesMap)
+		t.log(examineAll, scannedAlpha, t.w, t.w0, changesMap)
 		
 		if examineAll {
 			examineAll = false
@@ -283,8 +310,14 @@ func (t *sequentialMinimalOptimizationTask) Train() {
 	}
 }
 
-func SequentialMinimalOptimization(points [][]float, target []float, C, eps float, useHeuristic bool) (w []float, w0 float) {
-	t := newSequentialMinimalOptimizationTask(points, target, C, eps, useHeuristic)
+func SequentialMinimalOptimization(points [][]float, target []float, C, eps float) (w []float, w0 float) {
+	t := newSequentialMinimalOptimizationTask(points, target, C, eps, true, nil)
+	t.Train()
+	return t.w, t.w0
+}
+
+func SequentialMinimalOptimization_logger(points [][]float, target []float, C, eps float, log smoLoggerFunc) (w []float, w0 float) {
+	t := newSequentialMinimalOptimizationTask(points, target, C, eps, true, log)
 	t.Train()
 	return t.w, t.w0
 }
