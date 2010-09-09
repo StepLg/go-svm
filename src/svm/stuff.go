@@ -1,10 +1,10 @@
 package svm
 
 func scalarProduct(x, y []float) float {
-	if len(x)!=len(y) {
+	if len(x) != len(y) {
 		panic("Size mismatch.")
 	}
-	
+
 	res := 0.0
 	for i, _ := range x {
 		res += x[i] * y[i]
@@ -13,7 +13,7 @@ func scalarProduct(x, y []float) float {
 }
 
 func abs(x float) float {
-	if x<0.0 {
+	if x < 0.0 {
 		return -x
 	}
 	return x
